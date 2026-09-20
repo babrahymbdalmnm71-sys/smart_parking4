@@ -1,5 +1,5 @@
 name: smart_parking
-description: تطبيق مواقف سيارات ذكي احترافي باستخدام Firebase و Riverpod
+description: تطبيق مواقف سيارات ذكي احترافي متكامل مع لوحة تحكم وسجل دقيق
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -38,6 +38,7 @@ dependencies:
   intl: ^0.20.3
   google_fonts: ^6.2.1
   image_picker: ^1.1.0
+  cached_network_image: ^3.4.1
   path_provider: ^2.1.3
   font_awesome_flutter: ^10.7.0
 

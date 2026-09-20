@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../logic/app_state.dart';
 import '../../core/strings.dart';
 import '../../data/demo_data.dart';
@@ -60,10 +61,15 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
               ),
             ),
             flexibleSpace: FlexibleSpaceBar(
-              background: Image.network(
-                spot.imageUrl,
+              background: CachedNetworkImage(
+                key: ValueKey(spot.imageUrl),
+                imageUrl: spot.imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+                placeholder: (context, url) => Container(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) => Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -72,7 +78,7 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
                     ),
                   ),
                   alignment: Alignment.center,
-                  child: Text(spot.imageEmoji, style: const TextStyle(fontSize: 80)),
+                  child: const Icon(Icons.local_parking_rounded, color: Colors.white, size: 80),
                 ),
               ),
             ),
@@ -284,9 +290,29 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
                 startTime: DateTime.now(),
                 pricePerHour: spot.pricePerHour,
               ));
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const MainScaffold(initialIndex: 1)),
-                (route) => false,
+
+              // إظهار تنبيه بصري بالنجاح (إشعار داخلي)
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 60),
+                  title: const Text('تم الحجز بنجاح'),
+                  content: Text('لقد قمت بحجز مكان في "${spot.name}" بنجاح.\n\nيمكنك الآن التوجه للموقع والبدء في الركن.'),
+                  actions: [
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const MainScaffold(initialIndex: 1)),
+                          (route) => false,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                      child: const Text('متابعة'),
+                    ),
+                  ],
+                ),
               );
             },
             child: Text(s.reserveNow,

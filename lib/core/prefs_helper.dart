@@ -16,6 +16,7 @@ class PrefsHelper {
   static const String _isArabic = 'is_arabic';
   static const String _activeSession = 'active_session';
   static const String _hasUsedCoupon = 'has_used_coupon';
+  static const String _isAdmin = 'is_admin';
 
   static bool get isLoggedIn => _prefs.getBool(_isLoggedIn) ?? false;
   static String get userName => _prefs.getString(_userName) ?? 'حسن إبراهيم';
@@ -24,6 +25,7 @@ class PrefsHelper {
   static bool get isDarkMode => _prefs.getBool(_isDarkMode) ?? false;
   static bool get isArabic => _prefs.getBool(_isArabic) ?? true;
   static bool get hasUsedCoupon => _prefs.getBool(_hasUsedCoupon) ?? false;
+  static bool get isAdmin => _prefs.getBool(_isAdmin) ?? false;
   
   static Map<String, dynamic>? get activeSession {
     final data = _prefs.getString(_activeSession);
@@ -31,18 +33,17 @@ class PrefsHelper {
     return jsonDecode(data);
   }
 
-  static Future<void> setLogin(String name, String phone) async {
+  static Future<void> setLogin(String name, String phone, {bool isAdmin = false}) async {
     await _prefs.setBool(_isLoggedIn, true);
     await _prefs.setString(_userName, name);
     await _prefs.setString(_userPhone, phone);
+    await _prefs.setBool(_isAdmin, isAdmin);
   }
 
   static Future<void> logout() async {
     await _prefs.setBool(_isLoggedIn, false);
     await _prefs.remove(_activeSession);
-    // Note: We don't reset _hasUsedCoupon on logout usually, 
-    // but if the user wants it per user session we could.
-    // Given "once per user", keeping it persisted makes sense.
+    await _prefs.setBool(_isAdmin, false);
   }
 
   static Future<void> setUsedCoupon(bool value) async {

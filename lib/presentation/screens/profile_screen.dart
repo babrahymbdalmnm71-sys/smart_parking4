@@ -6,6 +6,7 @@ import '../../logic/app_state.dart';
 import '../../core/strings.dart';
 import '../../core/app_theme.dart';
 import 'login_screen.dart';
+import 'admin_dashboard_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -191,6 +192,27 @@ class ProfileScreen extends StatelessWidget {
               );
             }),
           const SizedBox(height: 20),
+          if (appState.isAdmin) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+                  );
+                },
+                icon: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white),
+                label: const Text('لوحة تحكم الأدمن', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueGrey.shade800,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(55),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
           Container(
             decoration: BoxDecoration(
               color: Theme.of(context).cardTheme.color,
@@ -227,6 +249,13 @@ class ProfileScreen extends StatelessWidget {
                     ],
                   ),
                   onTap: () => _showLanguageSheet(context, appState, s),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.support_agent_rounded),
+                  title: const Text('أرسل رأيك أو شكوى'),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                  onTap: () => _showFeedbackDialog(context, appState),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -288,6 +317,39 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  void _showFeedbackDialog(BuildContext context, AppState appState) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('أرسل رأيك أو شكوى'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'اكتب رسالتك هنا...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                appState.sendFeedback(controller.text);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم إرسال رسالتك بنجاح للادمن')),
+                );
+              }
+            },
+            child: const Text('إرسال'),
+          ),
         ],
       ),
     );

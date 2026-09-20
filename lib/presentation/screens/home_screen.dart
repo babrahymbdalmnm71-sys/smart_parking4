@@ -6,14 +6,30 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../logic/app_state.dart';
 import '../../core/strings.dart';
-import '../../data/demo_data.dart';
 import '../../core/app_theme.dart';
 import '../../data/models/parking_spot.dart';
+import '../widgets/app_image.dart';
 import 'parking_details_screen.dart';
 import 'offer_details_screen.dart';
+import 'notifications_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchController.text = context.read<AppState>().currentSearchQuery;
+    });
+  }
 
   Future<void> _determinePosition(BuildContext context) async {
     bool serviceEnabled;
@@ -57,10 +73,16 @@ class HomeScreen extends StatelessWidget {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final s = AppStrings(appState.isArabic);
-    final spots = DemoData.parkingSpots;
+    final spots = appState.parkingSpots;
 
     ImageProvider? profileImageProvider;
     if (appState.profileImage != null) {
@@ -104,27 +126,47 @@ class HomeScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardTheme.color,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                  Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardTheme.color,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('لا توجد إشعارات حالياً')),
-                        );
-                      },
-                      icon: const Icon(Icons.notifications_none_rounded, color: Colors.black87),
-                      tooltip: 'الإشعارات',
-                    ),
+                        child: IconButton(
+                          onPressed: () {
+                            context.read<AppState>().markNotificationsRead();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                            );
+                          },
+                          icon: const Icon(Icons.notifications_none_rounded, color: Colors.black87),
+                          tooltip: 'الإشعارات',
+                        ),
+                      ),
+                      if (appState.unreadNotificationsCount > 0)
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            child: Text(
+                              '${appState.unreadNotificationsCount}',
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -133,7 +175,11 @@ class HomeScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-              child: _SearchBar(hint: s.searchHint),
+              child: _SearchBar(
+                hint: s.searchHint,
+                controller: _searchController,
+                onChanged: (value) => context.read<AppState>().searchSpots(value),
+              ),
             ),
           ),
           SliverToBoxAdapter(
@@ -167,26 +213,34 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: _ParkingCard(
-                    spot: spots[i],
-                    s: s,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ParkingDetailsScreen(spot: spots[i]),
+          if (spots.isEmpty && _searchController.text.isNotEmpty)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: Center(child: Text('لا توجد نتائج بحث مطابقة')),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _ParkingCard(
+                      spot: spots[i],
+                      s: s,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ParkingDetailsScreen(spot: spots[i]),
+                        ),
                       ),
                     ),
                   ),
+                  childCount: spots.length,
                 ),
-                childCount: spots.length,
               ),
             ),
-          ),
           const SliverToBoxAdapter(child: SizedBox(height: 90)),
         ],
       ),
@@ -213,7 +267,9 @@ class _RealMapState extends State<_RealMap> {
 
     final LatLng center = userLoc != null
         ? LatLng(userLoc.latitude, userLoc.longitude)
-        : LatLng(widget.spots[0].latitude, widget.spots[0].longitude);
+        : (widget.spots.isNotEmpty 
+            ? LatLng(widget.spots[0].latitude, widget.spots[0].longitude)
+            : const LatLng(30.0444, 31.2357));
 
     if (userLoc != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -313,7 +369,9 @@ class _RealMapState extends State<_RealMap> {
 
 class _SearchBar extends StatelessWidget {
   final String hint;
-  const _SearchBar({required this.hint});
+  final TextEditingController controller;
+  final ValueChanged<String>? onChanged;
+  const _SearchBar({required this.hint, required this.controller, this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -333,11 +391,22 @@ class _SearchBar extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
+              controller: controller,
+              onChanged: onChanged,
               decoration: InputDecoration(
                 hintText: hint,
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                suffixIcon: controller.text.isNotEmpty 
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      onPressed: () {
+                        controller.clear();
+                        if (onChanged != null) onChanged!('');
+                      },
+                    )
+                  : null,
               ),
             ),
           ),
@@ -498,18 +567,10 @@ class _ParkingCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
-              child: Image.network(
-                spot.imageUrl,
+              child: AppImage(
+                imageUrl: spot.imageUrl,
                 width: 64,
                 height: 64,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 64,
-                  height: 64,
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  alignment: Alignment.center,
-                  child: Text(spot.imageEmoji, style: const TextStyle(fontSize: 28)),
-                ),
               ),
             ),
             const SizedBox(width: 14),

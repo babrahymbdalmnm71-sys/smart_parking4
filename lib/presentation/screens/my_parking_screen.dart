@@ -76,7 +76,7 @@ class _MyParkingScreenState extends State<MyParkingScreen> {
     
     double discount = 1.0;
     bool validCoupon = false;
-    String paymentMethod = 'Cash'; // Default
+    String paymentMethod = 'Cash'; 
 
     showDialog(
       context: context,
@@ -84,8 +84,11 @@ class _MyParkingScreenState extends State<MyParkingScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) {
           final currentElapsed = DateTime.now().difference(session.startTime);
-          final baseCost = (currentElapsed.inSeconds / 3600.0) * session.pricePerHour;
-          final finalCost = (baseCost * discount) < 0.5 && baseCost > 0 ? 0.5 : (baseCost * discount);
+          final double hours = currentElapsed.inSeconds / 3600.0;
+          // الساعة الأولى كاملة
+          final double effectiveHours = hours < 1.0 ? 1.0 : hours;
+          final baseCost = effectiveHours * session.pricePerHour;
+          final finalCost = baseCost * discount;
 
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -103,7 +106,6 @@ class _MyParkingScreenState extends State<MyParkingScreen> {
                     const Text('تم تطبيق الخصم بنجاح!', style: TextStyle(color: Colors.green, fontSize: 12)),
                   const Divider(height: 32),
                   
-                  // Payment Method Section
                   const Text('طريقة الدفع:', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   Row(
@@ -129,7 +131,6 @@ class _MyParkingScreenState extends State<MyParkingScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Coupon Section
                   if (!appState.hasUsedCoupon) ...[
                     const Text('كود الخصم:', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
@@ -207,8 +208,10 @@ class _MyParkingScreenState extends State<MyParkingScreen> {
                     setState(() {
                       _elapsed = Duration.zero;
                     });
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text('تم الدفع بنجاح عن طريق $paymentMethod')));
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                          content: Text('تم الدفع بنجاح عن طريق $paymentMethod')));
+                    }
                   }
                 },
                 child: const Text('تأكيد الدفع'),
@@ -409,8 +412,11 @@ class _ActiveSession extends StatelessWidget {
     
     if (session == null) return const SizedBox.shrink();
 
-    final cost = (elapsed.inSeconds / 3600.0) * session.pricePerHour;
-    final displayCost = cost < 0.5 ? 0.5 : cost;
+    // حساب التكلفة الحية مع اعتبار الساعة الأولى كحد أدنى
+    final double hours = elapsed.inSeconds / 3600.0;
+    final double effectiveHours = hours < 1.0 ? 1.0 : hours;
+    final displayCost = effectiveHours * session.pricePerHour;
+    
     final spotPos = LatLng(session.spot.latitude, session.spot.longitude);
 
     return Column(
